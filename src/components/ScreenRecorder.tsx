@@ -11,6 +11,7 @@ type RecorderState = "idle" | "recording" | "processing" | "completed" | "error"
 // Simulate a server API for processing number plate recognition
 const mockServerApi = {
   processVideoChunk: async (chunk: Blob): Promise<void> => {
+    console.log("chunks",chunk)
     // Simulate processing delay
     await new Promise((resolve) => setTimeout(resolve, 500));
     return Promise.resolve();
@@ -170,16 +171,20 @@ const ScreenRecorder: React.FC = () => {
         }
       }, 10000);
       
-      toast({
-        title: "Monitoring started",
+      toast(
+        
+        "Monitoring started",
+        {
         description: "Traffic feed is now being analyzed.",
       });
       
     } catch (error) {
       console.error("Error starting recording:", error);
-      toast({
-        variant: "destructive",
-        title: "Connection failed",
+      toast(
+        
+         "Connection failed",
+        {
+        // variant: "destructive",
         description: "Could not access video feed. Please try again.",
       });
       setRecorderState("error");
@@ -234,8 +239,8 @@ const ScreenRecorder: React.FC = () => {
   };
   
   const reportViolations = () => {
-    toast({
-      title: "Report submitted",
+    toast("Event Reported !",{
+      
       description: "All speed violations have been reported to the network.",
     });
   };
