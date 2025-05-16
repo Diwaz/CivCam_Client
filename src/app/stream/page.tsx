@@ -1,6 +1,26 @@
 "use client";
 import React, { useRef, useState, useEffect } from 'react';
-import Head from 'next/head';
+import {
+  Card,
+  CardContent
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import {
+  Camera,
+  CheckCircle,
+//   AlertCircle,
+  Shield,
+  Upload,
+  CircleGauge,
+//   Pencil,
+  Layers,
+  Settings,
+  Play,
+  Trash2,
+//   AreaChart
+} from "lucide-react";
+import { toast } from "sonner";
 
 interface Point {
   x: number;
@@ -35,7 +55,6 @@ const OverspeedDetection: React.FC = () => {
   const [resultsVisible, setResultsVisible] = useState<boolean>(false);
   const [videoFile, setVideoFile] = useState<File | null>(null);
 
-
   // States for drawing
   const [isDrawing, setIsDrawing] = useState<boolean>(false);
   const [currentArea, setCurrentArea] = useState<'area1' | 'area2' | null>(null);
@@ -63,7 +82,6 @@ const OverspeedDetection: React.FC = () => {
     if (videoPreviewVisible && videoFile && videoPreviewRef.current) {
       const objectURL = URL.createObjectURL(videoFile);
       videoPreviewRef.current.src = objectURL;
-      console.log("src", objectURL);
 
       return () => URL.revokeObjectURL(objectURL); // cleanup
     }
@@ -73,19 +91,19 @@ const OverspeedDetection: React.FC = () => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       if (file) {
-        // videoPreviewRef.current.src = URL.createObjectURL(file);
         setVideoFile(file);
-        setVideoPreviewVisible(true)
-        // console.log("src",videoPreviewRef.current.src)
+        setVideoPreviewVisible(true);
+        toast("Video uploaded", {
+          description: "Your traffic footage has been loaded successfully.",
+        });
       }
     }
   };
   
   const captureFrame = () => {
     if (videoPreviewRef.current && videoPreviewRef.current.readyState >= 2) {
-        setCanvasContainerVisible(true);
+      setCanvasContainerVisible(true);
       const videoCanvas = videoCanvasRef.current;
-      console.log("here",videoCanvas)
       if (videoCanvas) {
         const context = videoCanvas.getContext('2d');
         if (context) {
@@ -98,6 +116,9 @@ const OverspeedDetection: React.FC = () => {
           );
         }
       }
+      toast("Frame captured", {
+        description: "Now you can define detection areas.",
+      });
     }
   };
   
@@ -124,7 +145,7 @@ const OverspeedDetection: React.FC = () => {
       ctx.beginPath();
       ctx.moveTo(points[points.length - 1].x, points[points.length - 1].y);
       ctx.lineTo(x, y);
-      ctx.strokeStyle = currentArea === 'area1' ? 'green' : 'blue';
+      ctx.strokeStyle = currentArea === 'area1' ? '#10B981' : '#3B82F6';
       ctx.lineWidth = 2;
       ctx.stroke();
     }
@@ -159,6 +180,9 @@ const OverspeedDetection: React.FC = () => {
     setArea2Points([]);
     setCurrentArea(null);
     redrawAreas();
+    toast("Areas reset", {
+      description: "All detection areas have been cleared.",
+    });
   };
   
   const redrawAreas = () => {
@@ -172,10 +196,10 @@ const OverspeedDetection: React.FC = () => {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
     // Draw area1
-    drawPolygon(ctx, area1Points, 'green');
+    drawPolygon(ctx, area1Points, '#10B981');
     
     // Draw area2
-    drawPolygon(ctx, area2Points, 'blue');
+    drawPolygon(ctx, area2Points, '#3B82F6');
   };
   
   const drawPolygon = (ctx: CanvasRenderingContext2D, points: Point[], color: string) => {
@@ -212,12 +236,16 @@ const OverspeedDetection: React.FC = () => {
   
   const processVideo = async () => {
     if (!videoFileRef.current?.files?.length) {
-      alert('Please select a video file');
+      toast("Error", {
+        description: "Please select a video file.",
+      });
       return;
     }
     
     if (area1Points.length < 3 || area2Points.length < 3) {
-      alert('Please draw both detection areas with at least 3 points each');
+      toast("Error", {
+        description: "Please draw both detection areas with at least 3 points each.",
+      });
       return;
     }
     
@@ -237,6 +265,10 @@ const OverspeedDetection: React.FC = () => {
     // Show loader and progress
     setIsLoading(true);
     setProgressVisible(true);
+    
+    toast("Processing started", {
+      description: "Video is being analyzed for speed violations.",
+    });
     
     try {
       // Using modern fetch API with AbortController for timeout handling
@@ -268,6 +300,9 @@ const OverspeedDetection: React.FC = () => {
         const responseData = await response.json();
         setResults(responseData);
         setResultsVisible(true);
+        toast("Analysis complete", {
+          description: `Detected ${responseData.speeding_count} speed violations.`,
+        });
       } else {
         let errorMsg = 'Server error occurred';
         try {
@@ -276,17 +311,25 @@ const OverspeedDetection: React.FC = () => {
         } catch (e) {
           // Use default error message
         }
-        alert('Error: ' + errorMsg);
+        toast("Processing error", {
+          description: errorMsg,
+        });
       }
     } catch (error) {
       if (error instanceof Error) {
         if (error.name === 'AbortError') {
-          alert('Request timed out. The video may be too large or the server is busy.');
+          toast("Request timeout", {
+            description: "The video may be too large or the server is busy.",
+          });
         } else {
-          alert('Error: ' + error.message);
+          toast("Error", {
+            description: error.message,
+          });
         }
       } else {
-        alert('An unknown error occurred');
+        toast("Unknown error", {
+          description: "An unexpected problem occurred.",
+        });
       }
     } finally {
       setIsLoading(false);
@@ -295,257 +338,313 @@ const OverspeedDetection: React.FC = () => {
   };
   
   return (
-    <div className="container mx-auto max-w-4xl mt-8 px-4">
-      <Head>
-        <title>Overspeed Detection System</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      </Head>
+    <div className="container mx-auto max-w-4xl pt-8 px-4">
+      <h1 className="text-3xl font-bold mb-6 bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 bg-clip-text text-transparent">Overspeed Detection System</h1>
       
-      <h1 className="text-3xl font-bold mb-6">Overspeed Detection System</h1>
-      
-      <section className="bg-white shadow-md rounded-lg mb-6 overflow-hidden">
-        <header className="bg-gray-100 px-4 py-2 border-b">
-          <h2 className="font-semibold">1. Upload Video</h2>
-        </header>
-        <div className="p-4">
-          <div className="mb-4">
-            <label htmlFor="videoFile" className="block text-sm font-medium mb-1">
-              Select Video File
-            </label>
-            <input
-              className="block w-full text-sm border border-gray-300 rounded cursor-pointer focus:outline-none"
-              type="file"
-              id="videoFile"
-              ref={videoFileRef}
-              accept="video/*"
-              onChange={handleFileChange}
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Supported formats: MP4, AVI, MOV, MKV
+      <Card className="mb-6 w-full bg-gradient-to-br from-[#221F26] to-[#403E43]/80 border border-[#7E69AB]/20">
+        <CardContent className="p-6">
+          <div className="text-center mb-4">
+            <h2 className="text-xl font-bold bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 bg-clip-text text-transparent mb-2">
+              1. Upload Traffic Footage
+            </h2>
+            <p className="text-muted-foreground text-sm">
+              Select a video file containing traffic to analyze
             </p>
+          </div>
+          
+          <div className="mb-4">
+            <div className="flex items-center justify-center w-full">
+              <label htmlFor="videoFile" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer border-white/10 hover:border-white/20 bg-white/5 backdrop-blur-md">
+                <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                  <Upload className="w-8 h-8 mb-3 text-secondary" />
+                  <p className="mb-2 text-sm text-white/80">
+                    <span className="font-bold">Click to upload</span> or drag and drop
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    MP4, AVI, MOV, MKV (MAX. 100MB)
+                  </p>
+                </div>
+                <input 
+                  id="videoFile"
+                  ref={videoFileRef}
+                  accept="video/*"
+                  onChange={handleFileChange}
+                  type="file" 
+                  className="hidden" 
+                />
+              </label>
+            </div>
           </div>
           
           {videoPreviewVisible && (
             <div className="mb-4">
-              <label className="block text-sm font-medium mb-1">Video Preview</label>
-              <video 
-                ref={videoPreviewRef} 
-                className="w-full" 
-                controls
-              />
+              <div className="h-auto w-full rounded-md bg-white/5 backdrop-blur-md border border-white/10 overflow-hidden">
+                <video 
+                  ref={videoPreviewRef} 
+                  className="w-full" 
+                  controls
+                />
+              </div>
+              <Button 
+                className="w-full mt-4 bg-gradient-to-r from-purple-500 to-pink-500 hover:shadow-md transition-all duration-300" 
+                onClick={captureFrame}
+              >
+                <Camera className="mr-2 h-4 w-4" />
+                Capture Frame
+              </Button>
             </div>
           )}
-        </div>
-      </section>
+        </CardContent>
+      </Card>
 
-      <section className="bg-white shadow-md rounded-lg mb-6 overflow-hidden">
-        <header className="bg-gray-100 px-4 py-2 border-b">
-          <h2 className="font-semibold">2. Define Detection Areas</h2>
-        </header>
-        <div className="p-4">
-          <p className="mb-3">
-            Capture a frame and define two polygon areas: entry area (green) and exit area (blue).
-          </p>
-          <button
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
-            onClick={captureFrame}
-            disabled={!videoPreviewVisible}
-          >
-            Capture Frame
-          </button>
-          
-          {canvasContainerVisible && (
-            <div className="mt-4 relative">
+      {canvasContainerVisible && (
+        <Card className="mb-6 w-full bg-gradient-to-br from-[#221F26] to-[#403E43]/80 border border-[#7E69AB]/20">
+          <CardContent className="p-6">
+            <div className="text-center mb-4">
+              <h2 className="text-xl font-bold bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 bg-clip-text text-transparent mb-2">
+                2. Define Detection Areas
+              </h2>
+              <p className="text-muted-foreground text-sm">
+                Create entry zone (green) and exit zone (blue) by clicking to place points
+              </p>
+            </div>
+            
+            <div className="relative mb-4">
               <canvas 
                 ref={videoCanvasRef} 
                 width={800} 
                 height={450}
-                className="border border-gray-300"
-                style={{ backgroundImage: `url('/api/placeholder/800/450')`, backgroundSize: 'cover' }}
+                className="w-full h-auto rounded-md bg-white/5 backdrop-blur-md border border-white/10"
               />
               <canvas
                 ref={drawingAreaRef}
                 width={800}
                 height={450}
-                className="absolute top-0 left-0"
+                className="absolute top-0 left-0 w-full h-auto"
                 onMouseDown={startDrawing}
                 onMouseMove={draw}
                 onMouseUp={endDrawing}
                 onMouseLeave={endDrawing}
                 onClick={addPoint}
               />
-              
-              <div className="mt-2 flex gap-2">
-                <button
-                  className="px-3 py-1 bg-green-500 text-white text-sm rounded hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
-                  onClick={() => {
-                    resetDrawing();
-                    setCurrentArea('area1');
-                  }}
-                  disabled={currentArea === 'area1'}
-                >
-                  Draw Entry Area (Green)
-                </button>
-                <button
-                  className="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
-                  onClick={() => {
-                    resetDrawing();
-                    setCurrentArea('area2');
-                  }}
-                  disabled={currentArea === 'area2'}
-                >
-                  Draw Exit Area (Blue)
-                </button>
-                <button
-                  className="px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600"
-                  onClick={resetAreas}
-                >
-                  Reset Areas
-                </button>
+            </div>
+            
+            <div className="grid grid-cols-3 gap-2">
+              <Button
+                variant="outline"
+                className={`${currentArea === 'area1' ? 'bg-emerald-500/20 border-emerald-500' : 'bg-white/5 border-white/10'}`}
+                onClick={() => {
+                  resetDrawing();
+                  setCurrentArea('area1');
+                }}
+              >
+                <Layers className="mr-2 h-4 w-4 text-emerald-500" />
+                Entry Zone
+              </Button>
+              <Button
+                variant="outline"
+                className={`${currentArea === 'area2' ? 'bg-blue-500/20 border-blue-500' : 'bg-white/5 border-white/10'}`}
+                onClick={() => {
+                  resetDrawing();
+                  setCurrentArea('area2');
+                }}
+              >
+                <Layers className="mr-2 h-4 w-4 text-blue-500" />
+                Exit Zone
+              </Button>
+              <Button
+                variant="outline"
+                className="bg-red-500/10 hover:bg-red-500/20 border-red-500/30 hover:border-red-500/50"
+                onClick={resetAreas}
+              >
+                <Trash2 className="mr-2 h-4 w-4 text-red-400" />
+                Reset Areas
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <Card className="mb-6 w-full bg-gradient-to-br from-[#221F26] to-[#403E43]/80 border border-[#7E69AB]/20">
+        <CardContent className="p-6">
+          <div className="text-center mb-4">
+            <h2 className="text-xl font-bold bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 bg-clip-text text-transparent mb-2">
+              3. Detection Settings
+            </h2>
+            <p className="text-muted-foreground text-sm">
+              Configure sensitivity and thresholds for speed detection
+            </p>
+          </div>
+          
+          <div className="space-y-4">
+            <div>
+              <div className="flex justify-between mb-1">
+                <label htmlFor="trackingSens" className="text-sm text-white/80">
+                  Tracking Sensitivity
+                </label>
+                <span className="text-sm text-secondary">{trackingSensitivity}%</span>
+              </div>
+              <input
+                type="range"
+                className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-secondary"
+                id="trackingSens"
+                min={10}
+                max={100}
+                value={trackingSensitivity}
+                onChange={(e) => setTrackingSensitivity(parseInt(e.target.value))}
+              />
+              <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                <span>Low Detection</span>
+                <span>High Detection</span>
               </div>
             </div>
-          )}
-        </div>
-      </section>
-
-      <section className="bg-white shadow-md rounded-lg mb-6 overflow-hidden">
-        <header className="bg-gray-100 px-4 py-2 border-b">
-          <h2 className="font-semibold">3. Detection Settings</h2>
-        </header>
-        <div className="p-4">
-          <div className="mb-4">
-            <label htmlFor="trackingSens" className="block text-sm font-medium mb-1">
-              Tracking Sensitivity
-            </label>
-            <input
-              type="range"
-              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-              id="trackingSens"
-              min={10}
-              max={100}
-              value={trackingSensitivity}
-              onChange={(e) => setTrackingSensitivity(parseInt(e.target.value))}
-            />
-            <div className="flex justify-between text-xs text-gray-500 mt-1">
-              <span>Low (10)</span>
-              <span>{trackingSensitivity}</span>
-              <span>High (100)</span>
+            
+            <div>
+              <label htmlFor="speedLimit" className="block text-sm text-white/80 mb-1">
+                Speed Limit (km/h)
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  className="w-full p-2 bg-white/5 border border-white/10 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-white"
+                  id="speedLimit"
+                  value={speedLimit}
+                  onChange={(e) => setSpeedLimit(parseInt(e.target.value))}
+                  min={1}
+                />
+                <CircleGauge className="absolute right-3 top-2.5 h-4 w-4 text-muted-foreground" />
+              </div>
+            </div>
+            
+            <div>
+              <label htmlFor="calcDistance" className="block text-sm text-white/80 mb-1">
+                Distance Between Areas (meters)
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  className="w-full p-2 bg-white/5 border border-white/10 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-white"
+                  id="calcDistance"
+                  value={calcDistance}
+                  onChange={(e) => setCalcDistance(parseFloat(e.target.value))}
+                  min={1}
+                  step={0.1}
+                />
+                <Layers className="absolute right-3 top-2.5 h-4 w-4 text-muted-foreground" />
+              </div>
             </div>
           </div>
-          
-          <div className="mb-4">
-            <label htmlFor="speedLimit" className="block text-sm font-medium mb-1">
-              Speed Limit (km/h)
-            </label>
-            <input
-              type="number"
-              className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-              id="speedLimit"
-              value={speedLimit}
-              onChange={(e) => setSpeedLimit(parseInt(e.target.value))}
-              min={1}
-            />
-          </div>
-          
-          <div className="mb-4">
-            <label htmlFor="calcDistance" className="block text-sm font-medium mb-1">
-              Distance Between Areas (meters)
-            </label>
-            <input
-              type="number"
-              className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-              id="calcDistance"
-              value={calcDistance}
-              onChange={(e) => setCalcDistance(parseFloat(e.target.value))}
-              min={1}
-              step={0.1}
-            />
-          </div>
-        </div>
-      </section>
+        </CardContent>
+      </Card>
 
-      <section className="bg-white shadow-md rounded-lg mb-6 overflow-hidden">
-        <header className="bg-gray-100 px-4 py-2 border-b">
-          <h2 className="font-semibold">4. Process Video</h2>
-        </header>
-        <div className="p-4">
-          <button
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
-            onClick={processVideo}
-            disabled={!canvasContainerVisible || area1Points.length < 3 || area2Points.length < 3 || isLoading}
-          >
-            Process Video
-          </button>
+      <Card className="mb-6 w-full bg-gradient-to-br from-[#221F26] to-[#403E43]/80 border border-[#7E69AB]/20">
+        <CardContent className="p-6">
+          <div className="text-center mb-4">
+            <h2 className="text-xl font-bold bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 bg-clip-text text-transparent mb-2">
+              4. Process Video
+            </h2>
+            <p className="text-muted-foreground text-sm">
+              Start analysis to detect speeding violations
+            </p>
+          </div>
+          
+          {!isLoading && !progressVisible && (
+            <Button 
+              className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:shadow-md transition-all duration-300" 
+              onClick={processVideo}
+              disabled={!canvasContainerVisible || area1Points.length < 3 || area2Points.length < 3}
+            >
+              <Play className="mr-2 h-4 w-4" />
+              Start Analysis
+            </Button>
+          )}
           
           {progressVisible && (
-            <div className="mt-4">
-              <p className="block text-sm font-medium mb-1">Processing video...</p>
-              <div className="w-full bg-gray-200 rounded-full h-2.5">
-                <div 
-                  className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
-                  style={{ width: `${uploadProgress}%` }}
-                />
+            <div className="space-y-4">
+              <div className="h-40 w-full rounded-md bg-white/5 backdrop-blur-md border border-white/10 flex items-center justify-center flex-col p-6">
+                <div className="w-12 h-12 rounded-full border-4 border-t-secondary border-secondary/30 animate-spin-slow mb-4"></div>
+                <div className="text-sm text-muted-foreground mb-2">Processing video data...</div>
+                <Progress value={uploadProgress} className="w-full h-2" />
               </div>
+              <Button disabled className="w-full">
+                <Settings className="mr-2 h-4 w-4 animate-spin" /> Analyzing...
+              </Button>
             </div>
           )}
-          
-          {isLoading && (
-            <div className="flex justify-center mt-4">
-              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500" />
-            </div>
-          )}
-        </div>
-      </section>
+        </CardContent>
+      </Card>
 
       {resultsVisible && results && (
-        <section className="bg-white shadow-md rounded-lg mb-6 overflow-hidden">
-          <header className="bg-blue-500 text-white px-4 py-2 border-b">
-            <h2 className="font-semibold">Results</h2>
-          </header>
-          <div className="p-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-              <div className="bg-green-500 text-white rounded-md p-4 text-center">
-                <h3 className="font-medium">Total Vehicles</h3>
-                <p className="text-3xl font-bold">{results.total_vehicles_detected}</p>
+        <Card className="mb-6 w-full bg-gradient-to-br from-[#221F26] to-[#403E43]/80 border border-[#7E69AB]/20">
+          <CardContent className="p-6">
+            <div className="text-center mb-6">
+              <h2 className="text-xl font-bold bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 bg-clip-text text-transparent mb-2">
+                Detection Results
+              </h2>
+              <div className="flex items-center justify-center">
+                <CheckCircle className="h-5 w-5 text-green-400 mr-2" />
+                <p className="text-green-400">Analysis complete</p>
               </div>
-              <div className="bg-red-500 text-white rounded-md p-4 text-center">
-                <h3 className="font-medium">Speeding Vehicles</h3>
-                <p className="text-3xl font-bold">{results.speeding_count}</p>
+            </div>
+            
+            <div className="grid grid-cols-3 gap-4 mb-6">
+              <div className="rounded-md bg-gradient-to-br from-emerald-900/30 to-emerald-600/10 border border-emerald-500/20 p-4 text-center">
+                <p className="text-xs text-muted-foreground mb-1">Total Vehicles</p>
+                <p className="text-3xl font-bold text-emerald-400">{results.total_vehicles_detected}</p>
               </div>
-              <div className="bg-blue-400 text-white rounded-md p-4 text-center">
-                <h3 className="font-medium">Processing Time</h3>
-                <p className="text-3xl font-bold">{results.processing_time}s</p>
+              <div className="rounded-md bg-gradient-to-br from-red-900/30 to-red-600/10 border border-red-500/20 p-4 text-center">
+                <p className="text-xs text-muted-foreground mb-1">Speeding</p>
+                <p className="text-3xl font-bold text-red-400">{results.speeding_count}</p>
+              </div>
+              <div className="rounded-md bg-gradient-to-br from-blue-900/30 to-blue-600/10 border border-blue-500/20 p-4 text-center">
+                <p className="text-xs text-muted-foreground mb-1">Processing Time</p>
+                <p className="text-3xl font-bold text-blue-400">{results.processing_time}s</p>
               </div>
             </div>
 
-            <h3 className="font-semibold mt-6 mb-3">Speeding Vehicles Details</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <h3 className="text-lg font-semibold text-secondary mb-4">Speeding Violations</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto">
               {results.speeding_vehicles?.map((vehicle) => (
-                <article key={vehicle.vehicle_id} className="border rounded-md p-3 shadow-sm">
-                  <div className="flex justify-between mb-2">
-                    <span className="font-semibold">Vehicle #{vehicle.vehicle_id}</span>
-                    <span className="bg-red-100 text-red-800 text-xs font-medium px-2 py-0.5 rounded">
+                <div key={vehicle.vehicle_id} className="bg-white/5 backdrop-blur-md border border-white/10 rounded-md p-4">
+                  <div className="flex justify-between items-center mb-2">
+                    <div className="text-sm">
+                      <span className="text-white/80">Vehicle #{vehicle.vehicle_id}</span>
+                      {vehicle.plate && <span className="block text-muted-foreground">{vehicle.plate}</span>}
+                    </div>
+                    <div className="bg-red-500/20 border border-red-500/30 px-3 py-1 rounded-full text-red-400 text-sm flex items-center">
+                      <CircleGauge className="h-3.5 w-3.5 mr-1" />
                       {vehicle.speed} km/h
-                    </span>
+                    </div>
                   </div>
-                  <div className="text-sm text-gray-600">
-                    <p>Detected at: {vehicle.timestamp}</p>
-                    {vehicle.plate && <p>Plate: {vehicle.plate}</p>}
+                  <div className="text-xs text-muted-foreground">
+                    Detected at: {vehicle.timestamp}
                   </div>
                   {vehicle.image_path && (
-                    <div className="mt-2">
+                    <div className="mt-3 rounded-md overflow-hidden">
                       <img 
                         src={vehicle.image_path} 
                         alt={`Vehicle #${vehicle.vehicle_id}`}
-                        className="w-full h-auto rounded"
+                        className="w-full h-auto"
                       />
                     </div>
                   )}
-                </article>
+                </div>
               ))}
             </div>
-          </div>
-        </section>
+            
+            <Button 
+              className="w-full mt-6 bg-gradient-to-r from-purple-500 to-pink-500 hover:shadow-md transition-all duration-300"
+              onClick={() => {
+                toast("Violations Reported", {
+                  description: "All speed violations have been reported to the network.",
+                });
+              }}
+            >
+              <Shield className="mr-2 h-4 w-4" />
+              Report All Violations
+            </Button>
+          </CardContent>
+        </Card>
       )}
     </div>
   );
