@@ -122,7 +122,7 @@ const OverspeedDetection: React.FC = () => {
     }
   };
   
-  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const startDrawing = () => {
     if (!currentArea) return;
     setIsDrawing(true);
   };
@@ -308,8 +308,9 @@ const OverspeedDetection: React.FC = () => {
         try {
           const errorData = await response.json();
           errorMsg = errorData.error || errorMsg;
-        } catch (e) {
+        } catch (error) {
           // Use default error message
+         console.log("error:",error) 
         }
         toast("Processing error", {
           description: errorMsg,
@@ -338,7 +339,7 @@ const OverspeedDetection: React.FC = () => {
   };
   
   return (
-    <div className="container mx-auto max-w-4xl pt-8 px-4">
+    <div className="container mx-auto max-w-4xl pt-8 px-4  ">
       <h1 className="text-3xl font-bold mb-6 bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 bg-clip-text text-transparent">Overspeed Detection System</h1>
       
       <Card className="mb-6 w-full bg-gradient-to-br from-[#221F26] to-[#403E43]/80 border border-[#7E69AB]/20">
