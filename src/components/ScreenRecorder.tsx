@@ -129,7 +129,7 @@ const ScreenRecorder: React.FC = () => {
       
       // Create media recorder
       const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 'video/webm;codecs=vp9'
+        mimeType: 'video/webm;codecs=vp8'
       });
       
       mediaRecorderRef.current = mediaRecorder;
