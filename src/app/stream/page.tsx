@@ -146,7 +146,7 @@ const OverspeedDetection: React.FC = () => {
       // Create a temporary canvas to capture the frame
       const tempCanvas = document.createElement('canvas');
       const video = videoPreviewRef.current;
-      
+        console.log(frameHeight,frameWidth);
       // Make sure the video has dimensions
       if (video.videoWidth === 0 || video.videoHeight === 0) {
         toast("Video not ready", {
