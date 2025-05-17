@@ -21,6 +21,7 @@ import {
 //   AreaChart
 } from "lucide-react";
 import { toast } from "sonner";
+import ClaimButton from '@/components/ClaimButton';
 
 interface Point {
   x: number;
@@ -368,111 +369,154 @@ const OverspeedDetection: React.FC = () => {
 //     }
 //   };
   
-  const processVideo = async () => {
-    if (!videoFileRef.current?.files?.length) {
-      toast("Error", {
-        description: "Please select a video file.",
-      });
-      return;
-    }
+//   const processVideo = async () => {
+//     if (!videoFileRef.current?.files?.length) {
+//       toast("Error", {
+//         description: "Please select a video file.",
+//       });
+//       return;
+//     }
     
-    if (area1Points.length < 3 || area2Points.length < 3) {
-      toast("Error", {
-        description: "Please draw both detection areas with at least 3 points each.",
-      });
-      return;
-    }
+//     if (area1Points.length < 3 || area2Points.length < 3) {
+//       toast("Error", {
+//         description: "Please draw both detection areas with at least 3 points each.",
+//       });
+//       return;
+//     }
     
-    // Convert canvas coordinates to array format for backend
-    const area1Array = area1Points.map(p => [Math.round(p.x*1.6), Math.round(p.y*1.6)]);
-    const area2Array = area2Points.map(p => [Math.round(p.x*1.6), Math.round(p.y*1.6)]);
+//     // Convert canvas coordinates to array format for backend
+//     const area1Array = area1Points.map(p => [Math.round(p.x*1.6), Math.round(p.y*1.6)]);
+//     const area2Array = area2Points.map(p => [Math.round(p.x*1.6), Math.round(p.y*1.6)]);
     
-    // Prepare form data
-    const formData = new FormData();
-    formData.append('video', videoFileRef.current.files[0]);
-    formData.append('area1', JSON.stringify(area1Array));
-    formData.append('area2', JSON.stringify(area2Array));
-    formData.append('tracking_sens', trackingSensitivity.toString());
-    formData.append('speed_limit', speedLimit.toString());
-    formData.append('calc_distance', calcDistance.toString());
+//     // Prepare form data
+//     const formData = new FormData();
+//     formData.append('video', videoFileRef.current.files[0]);
+//     formData.append('area1', JSON.stringify(area1Array));
+//     formData.append('area2', JSON.stringify(area2Array));
+//     formData.append('tracking_sens', trackingSensitivity.toString());
+//     formData.append('speed_limit', speedLimit.toString());
+//     formData.append('calc_distance', calcDistance.toString());
     
-    // Show loader and progress
-    setIsLoading(true);
+//     // Show loader and progress
+//     setIsLoading(true);
+//     setProgressVisible(true);
+    
+//     toast("Processing started", {
+//       description: "Video is being analyzed for speed violations.",
+//     });
+    
+//     try {
+//       // Using modern fetch API with AbortController for timeout handling
+//       const controller = new AbortController();
+//       const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minute timeout
+      
+//       // We can't directly track progress with fetch, so we set a simulated progress
+//       const progressInterval = setInterval(() => {
+//         setUploadProgress(prev => {
+//           if (prev >= 95) {
+//             clearInterval(progressInterval);
+//             return prev;
+//           }
+//           return prev + 5;
+//         });
+//       }, 500);
+//   const response = await fetch('http://localhost:5000/process-video', {
+//         method: 'POST',
+//         body: formData,
+//         signal: controller.signal
+//       });
+      
+//       clearTimeout(timeoutId);
+//       clearInterval(progressInterval);
+//       setUploadProgress(100);
+      
+//       if (response.ok) {
+//         const responseData = await response.json();
+//         setResults(responseData);
+//         setResultsVisible(true);
+//         toast("Analysis complete", {
+//           description: `Detected ${responseData.speeding_count} speed violations.`,
+//         });
+//       } else {
+//         let errorMsg = 'Server error occurred';
+//         try {
+//           const errorData = await response.json();
+//           errorMsg = errorData.error || errorMsg;
+//         } catch (error) {
+//           // Use default error message
+//          console.log("error:",error) 
+//         }
+//         toast("Processing error", {
+//           description: errorMsg,
+//         });
+//       }
+//     } catch (error) {
+//       if (error instanceof Error) {
+//         if (error.name === 'AbortError') {
+//           toast("Request timeout", {
+//             description: "The video may be too large or the server is busy.",
+//           });
+//         } else {
+//           toast("Error", {
+//             description: error.message,
+//           });
+//         }
+//       } else {
+//         toast("Unknown error", {
+//           description: "An unexpected problem occurred.",
+//         });
+//       }
+//     } finally {
+//       setIsLoading(false);
+//       setProgressVisible(false);
+//     }
+//   };
+ // Placeholder for processing video
+  const processVideo = () => {
+    // Implementation for processing video would go here
     setProgressVisible(true);
     
-    toast("Processing started", {
-      description: "Video is being analyzed for speed violations.",
-    });
-    
-    try {
-      // Using modern fetch API with AbortController for timeout handling
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minute timeout
+    // Simulate processing
+    let progress = 0;
+    const interval = setInterval(() => {
+      progress += 5;
+      setUploadProgress(progress);
       
-      // We can't directly track progress with fetch, so we set a simulated progress
-      const progressInterval = setInterval(() => {
-        setUploadProgress(prev => {
-          if (prev >= 95) {
-            clearInterval(progressInterval);
-            return prev;
-          }
-          return prev + 5;
-        });
-      }, 500);
-  const response = await fetch('http://localhost:5000/process-video', {
-        method: 'POST',
-        body: formData,
-        signal: controller.signal
-      });
-      
-      clearTimeout(timeoutId);
-      clearInterval(progressInterval);
-      setUploadProgress(100);
-      
-      if (response.ok) {
-        const responseData = await response.json();
-        setResults(responseData);
+      if (progress >= 100) {
+        clearInterval(interval);
+        setProgressVisible(false);
         setResultsVisible(true);
-        toast("Analysis complete", {
-          description: `Detected ${responseData.speeding_count} speed violations.`,
-        });
-      } else {
-        let errorMsg = 'Server error occurred';
-        try {
-          const errorData = await response.json();
-          errorMsg = errorData.error || errorMsg;
-        } catch (error) {
-          // Use default error message
-         console.log("error:",error) 
-        }
-        toast("Processing error", {
-          description: errorMsg,
-        });
-      }
-    } catch (error) {
-      if (error instanceof Error) {
-        if (error.name === 'AbortError') {
-          toast("Request timeout", {
-            description: "The video may be too large or the server is busy.",
-          });
-        } else {
-          toast("Error", {
-            description: error.message,
-          });
-        }
-      } else {
-        toast("Unknown error", {
-          description: "An unexpected problem occurred.",
+        setIsLoading(false)
+        
+        // Mock results
+        setResults({
+          total_vehicles_detected: 42,
+          speeding_count: 8,
+          processing_time: 36,
+          speeding_vehicles: [
+            {
+              vehicle_id: 1,
+              speed: 78,
+              timestamp: "14:32:15",
+              plate: "XYZ-123",
+              image_path: "https://via.placeholder.com/400x300?text=Vehicle+1"
+            },
+            {
+              vehicle_id: 2,
+              speed: 82,
+              timestamp: "14:45:22",
+              plate: "ABC-456",
+              image_path: "https://via.placeholder.com/400x300?text=Vehicle+2"
+            }
+          ]
         });
       }
-    } finally {
-      setIsLoading(false);
-      setProgressVisible(false);
-    }
+    }, 200);
   };
+  
       return (
     <div className="container mx-auto max-w-4xl pt-8 px-4">
-      <h1 className="text-3xl font-bold mb-6 bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 bg-clip-text text-transparent">Overspeed Detection System</h1>
+      <h1 className="text-3xl font-bold mb-6 bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 bg-clip-text text-transparent">DePin for ANPR</h1>
       
       <Card className="mb-6 w-full bg-gradient-to-br from-[#221F26] to-[#403E43]/80 border border-[#7E69AB]/20">
         <CardContent className="p-6">
@@ -733,7 +777,7 @@ const OverspeedDetection: React.FC = () => {
               </div>
             </div>
             
-            <div className="grid grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-2 gap-4 mb-6">
               <div className="rounded-md bg-gradient-to-br from-emerald-900/30 to-emerald-600/10 border border-emerald-500/20 p-4 text-center">
                 <p className="text-xs text-muted-foreground mb-1">Total Vehicles</p>
                 <p className="text-3xl font-bold text-emerald-400">{results.total_vehicles_detected}</p>
@@ -742,10 +786,10 @@ const OverspeedDetection: React.FC = () => {
                 <p className="text-xs text-muted-foreground mb-1">Speeding</p>
                 <p className="text-3xl font-bold text-red-400">{results.speeding_count}</p>
               </div>
-              <div className="rounded-md bg-gradient-to-br from-blue-900/30 to-blue-600/10 border border-blue-500/20 p-4 text-center">
+              {/* <div className="rounded-md bg-gradient-to-br from-blue-900/30 to-blue-600/10 border border-blue-500/20 p-4 text-center">
                 <p className="text-xs text-muted-foreground mb-1">Processing Time</p>
                 <p className="text-3xl font-bold text-blue-400">{results.processing_time}s</p>
-              </div>
+              </div> */}
             </div>
 
             <h3 className="text-lg font-semibold text-secondary mb-4">Speeding Violations</h3>
@@ -765,6 +809,7 @@ const OverspeedDetection: React.FC = () => {
                   <div className="text-xs text-muted-foreground">
                     Detected at: {vehicle.timestamp}
                   </div>
+                  <ClaimButton/>
                   {vehicle.image_path && (
                     <div className="mt-3 rounded-md overflow-hidden">
                       <img 
