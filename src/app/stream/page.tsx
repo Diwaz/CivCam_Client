@@ -419,8 +419,7 @@ const OverspeedDetection: React.FC = () => {
           return prev + 5;
         });
       }, 500);
-      
-      const response = await fetch('http://localhost:5000/process-video', {
+  const response = await fetch('http://localhost:5000/process-video', {
         method: 'POST',
         body: formData,
         signal: controller.signal
@@ -471,8 +470,7 @@ const OverspeedDetection: React.FC = () => {
       setProgressVisible(false);
     }
   };
-  
-  return (
+      return (
     <div className="container mx-auto max-w-4xl pt-8 px-4">
       <h1 className="text-3xl font-bold mb-6 bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 bg-clip-text text-transparent">Overspeed Detection System</h1>
       
