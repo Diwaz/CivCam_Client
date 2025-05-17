@@ -810,7 +810,7 @@ const OverspeedDetection: React.FC = () => {
                     Detected at: {vehicle.timestamp}
                   </div>
                   <ClaimButton/>
-                  {vehicle.image_path && (
+                  {/* {vehicle.image_path && (
                     <div className="mt-3 rounded-md overflow-hidden">
                       <img 
                         src={vehicle.image_path} 
@@ -818,7 +818,7 @@ const OverspeedDetection: React.FC = () => {
                         className="w-full h-auto"
                       />
                     </div>
-                  )}
+                  )} */}
                 </div>
               ))}
             </div>
