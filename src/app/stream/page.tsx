@@ -44,16 +44,23 @@ const OverspeedDetection: React.FC = () => {
   // Refs
   const videoFileRef = useRef<HTMLInputElement>(null);
   const videoPreviewRef = useRef<HTMLVideoElement>(null);
-  const videoCanvasRef = useRef<HTMLCanvasElement>(null);
+//   const videoCanvasRef = useRef<HTMLCanvasElement>(null);
   const drawingAreaRef = useRef<HTMLCanvasElement>(null);
+ const imageRef = useRef<HTMLImageElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   
   // States for UI visibility
-  const [videoPreviewVisible, setVideoPreviewVisible] = useState<boolean>(false);
+    const [videoPreviewVisible, setVideoPreviewVisible] = useState<boolean>(false);
   const [canvasContainerVisible, setCanvasContainerVisible] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [progressVisible, setProgressVisible] = useState<boolean>(false);
   const [resultsVisible, setResultsVisible] = useState<boolean>(false);
   const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [capturedFrameUrl, setCapturedFrameUrl] = useState<string | null>(null);
+  const [frameWidth, setFrameWidth] = useState<number>(800);
+  const [frameHeight, setFrameHeight] = useState<number>(450);
+
+
 
   // States for drawing
   const [isDrawing, setIsDrawing] = useState<boolean>(false);
@@ -69,13 +76,41 @@ const OverspeedDetection: React.FC = () => {
   
   // States for results
   const [results, setResults] = useState<ProcessingResults | null>(null);
+
   
-  // Effect to redraw areas when points change
+ // Effect to adjust canvas size and position when image loads
   useEffect(() => {
-    if (drawingAreaRef.current) {
-      redrawAreas();
+    if (capturedFrameUrl && imageRef.current && drawingAreaRef.current) {
+      const updateCanvasSize = () => {
+        if (imageRef.current && drawingAreaRef.current && containerRef.current) {
+          // Get the image's displayed dimensions
+          const rect = imageRef.current.getBoundingClientRect();
+          
+          // Update canvas size to match image display size
+          drawingAreaRef.current.width = rect.width;
+          drawingAreaRef.current.height = rect.height;
+          
+          // Store these dimensions for coordinate calculations
+          setFrameWidth(rect.width);
+          setFrameHeight(rect.height);
+          
+          // Clear and redraw areas to adjust to new canvas size
+          redrawAreas();
+        }
+      };
+
+      // Set initial size
+      updateCanvasSize();
+      
+      // Add resize listener to handle window resize
+      window.addEventListener('resize', updateCanvasSize);
+      
+      // Clean up
+      return () => {
+        window.removeEventListener('resize', updateCanvasSize);
+      };
     }
-  }, [area1Points, area2Points]);
+  }, [capturedFrameUrl, area1Points, area2Points]);
 
   // Update video src only after the DOM is updated
   useEffect(() => {
@@ -99,27 +134,65 @@ const OverspeedDetection: React.FC = () => {
       }
     }
   };
-  
   const captureFrame = () => {
-    if (videoPreviewRef.current && videoPreviewRef.current.readyState >= 2) {
-      setCanvasContainerVisible(true);
-      const videoCanvas = videoCanvasRef.current;
-      if (videoCanvas) {
-        const context = videoCanvas.getContext('2d');
-        if (context) {
-          context.drawImage(
-            videoPreviewRef.current, 
-            0, 
-            0, 
-            videoCanvas.width, 
-            videoCanvas.height
-          );
-        }
+    if (!videoPreviewRef.current) {
+      toast("Video not found", {
+        description: "Please upload a video first.",
+      });
+      return;
+    }
+    
+    try {
+      // Create a temporary canvas to capture the frame
+      const tempCanvas = document.createElement('canvas');
+      const video = videoPreviewRef.current;
+      
+      // Make sure the video has dimensions
+      if (video.videoWidth === 0 || video.videoHeight === 0) {
+        toast("Video not ready", {
+          description: "Please wait for the video to load completely.",
+        });
+        return;
       }
-      toast("Frame captured", {
-        description: "Now you can define detection areas.",
+        // Set canvas dimensions to match video
+      tempCanvas.width = video.videoWidth;
+      tempCanvas.height = video.videoHeight;
+      
+      // Draw the current frame to the canvas
+      const context = tempCanvas.getContext('2d');
+      if (context) {
+        context.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
+        
+        // Convert canvas to data URL
+        const frameUrl = tempCanvas.toDataURL('image/jpeg');
+        setCapturedFrameUrl(frameUrl);
+        
+        // Show canvas container
+        setCanvasContainerVisible(true);
+        
+        // Reset drawing areas
+        setArea1Points([]);
+        setArea2Points([]);
+        setCurrentArea(null);
+        
+        toast("Frame captured", {
+          description: "Now you can define detection areas.",
+        });
+      }
+    } catch (error) {
+      console.error("Error capturing frame:", error);
+      toast("Error capturing frame", {
+        description: "There was an error capturing the frame. Please try again.",
       });
     }
+  };
+  // Get accurate mouse coordinates relative to the canvas
+  const getMousePos = (canvas: HTMLCanvasElement, event: React.MouseEvent): Point => {
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top
+    };
   };
   
   const startDrawing = () => {
@@ -130,27 +203,36 @@ const OverspeedDetection: React.FC = () => {
   const draw = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!isDrawing || !currentArea || !drawingAreaRef.current) return;
     
-    const rect = drawingAreaRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const canvas = drawingAreaRef.current;
+    const pos = getMousePos(canvas, e);
     
+    // Clear and redraw to show drawing preview
     redrawAreas();
     
-    // Draw line from last point to current position
-    const ctx = drawingAreaRef.current.getContext('2d');
-    if (!ctx) return;
-    
-    const points = currentArea === 'area1' ? area1Points : area2Points;
-    if (points.length > 0) {
+    // Draw line from the last point to current mouse position
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
       ctx.beginPath();
-      ctx.moveTo(points[points.length - 1].x, points[points.length - 1].y);
-      ctx.lineTo(x, y);
-      ctx.strokeStyle = currentArea === 'area1' ? '#10B981' : '#3B82F6';
-      ctx.lineWidth = 2;
-      ctx.stroke();
+      const points = currentArea === 'area1' ? area1Points : area2Points;
+      
+      if (points.length > 0) {
+        ctx.moveTo(points[points.length - 1].x, points[points.length - 1].y);
+        ctx.lineTo(pos.x, pos.y);
+        ctx.strokeStyle = currentArea === 'area1' ? 'rgba(16, 185, 129, 0.8)' : 'rgba(59, 130, 246, 0.8)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+      
+      // Draw the temporary point
+      ctx.beginPath();
+      ctx.arc(pos.x, pos.y, 4, 0, 2 * Math.PI);
+      ctx.fillStyle = currentArea === 'area1' ? 'rgba(16, 185, 129, 0.8)' : 'rgba(59, 130, 246, 0.8)';
+      ctx.fill();
     }
   };
-  
+
+
+
   const endDrawing = () => {
     setIsDrawing(false);
   };
@@ -158,18 +240,18 @@ const OverspeedDetection: React.FC = () => {
   const addPoint = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!currentArea || !drawingAreaRef.current) return;
     
-    const rect = drawingAreaRef.current.getBoundingClientRect();
-    
-    const x = (e.clientX - rect.left);
-    const y = (e.clientY - rect.top);
+    const canvas = drawingAreaRef.current;
+    const pos = getMousePos(canvas, e);
     
     if (currentArea === 'area1') {
-      setArea1Points([...area1Points, { x, y }]);
+      setArea1Points([...area1Points, pos]);
     } else {
-      setArea2Points([...area2Points, { x, y }]);
+      setArea2Points([...area2Points, pos]);
     }
   };
-  
+
+
+
   const resetDrawing = () => {
     setIsDrawing(false);
     redrawAreas();
@@ -185,54 +267,106 @@ const OverspeedDetection: React.FC = () => {
     });
   };
   
+   // Draw both areas
   const redrawAreas = () => {
+    if (!drawingAreaRef.current) return;
+    
     const canvas = drawingAreaRef.current;
-    if (!canvas) return;
-    
     const ctx = canvas.getContext('2d');
-    if (!ctx) return;
     
-    // Clear canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    // Draw area1
-    drawPolygon(ctx, area1Points, '#10B981');
-    
-    // Draw area2
-    drawPolygon(ctx, area2Points, '#3B82F6');
+    if (ctx) {
+      // Clear the canvas
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Draw area 1 (green)
+      if (area1Points.length > 0) {
+        ctx.beginPath();
+        ctx.moveTo(area1Points[0].x, area1Points[0].y);
+        
+        for (let i = 1; i < area1Points.length; i++) {
+          ctx.lineTo(area1Points[i].x, area1Points[i].y);
+        }
+        
+        // Close the path if there are at least 3 points
+        if (area1Points.length >= 3) {
+          ctx.lineTo(area1Points[0].x, area1Points[0].y);
+          ctx.fillStyle = 'rgba(16, 185, 129, 0.2)';
+          ctx.fill();
+        }
+        
+        ctx.strokeStyle = 'rgba(16, 185, 129, 0.8)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        // Draw points
+        area1Points.forEach(point => {
+          ctx.beginPath();
+          ctx.arc(point.x, point.y, 4, 0, 2 * Math.PI);
+          ctx.fillStyle = 'rgba(16, 185, 129, 0.8)';
+          ctx.fill();
+        });
+      }
+           // Draw area 2 (blue)
+      if (area2Points.length > 0) {
+        ctx.beginPath();
+        ctx.moveTo(area2Points[0].x, area2Points[0].y);
+        
+        for (let i = 1; i < area2Points.length; i++) {
+          ctx.lineTo(area2Points[i].x, area2Points[i].y);
+        }
+        
+        // Close the path if there are at least 3 points
+        if (area2Points.length >= 3) {
+          ctx.lineTo(area2Points[0].x, area2Points[0].y);
+          ctx.fillStyle = 'rgba(59, 130, 246, 0.2)';
+          ctx.fill();
+        }
+        
+        ctx.strokeStyle = 'rgba(59, 130, 246, 0.8)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        // Draw points
+        area2Points.forEach(point => {
+          ctx.beginPath();
+          ctx.arc(point.x, point.y, 4, 0, 2 * Math.PI);
+          ctx.fillStyle = 'rgba(59, 130, 246, 0.8)';
+          ctx.fill();
+        });
+      }
+    }
   };
-  
-  const drawPolygon = (ctx: CanvasRenderingContext2D, points: Point[], color: string) => {
-    if (points.length < 1) return;
+//   const drawPolygon = (ctx: CanvasRenderingContext2D, points: Point[], color: string) => {
+//     if (points.length < 1) return;
     
-    ctx.beginPath();
-    ctx.moveTo(points[0].x, points[0].y);
+//     ctx.beginPath();
+//     ctx.moveTo(points[0].x, points[0].y);
     
-    for (let i = 1; i < points.length; i++) {
-      ctx.lineTo(points[i].x, points[i].y);
-    }
+//     for (let i = 1; i < points.length; i++) {
+//       ctx.lineTo(points[i].x, points[i].y);
+//     }
     
-    // Close the polygon if there are at least 3 points
-    if (points.length >= 3) {
-      ctx.lineTo(points[0].x, points[0].y);
-    }
+//     // Close the polygon if there are at least 3 points
+//     if (points.length >= 3) {
+//       ctx.lineTo(points[0].x, points[0].y);
+//     }
     
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 2;
-    ctx.stroke();
+//     ctx.strokeStyle = color;
+//     ctx.lineWidth = 2;
+//     ctx.stroke();
     
-    // Fill with semi-transparent color
-    ctx.fillStyle = color + '40'; // 25% opacity
-    ctx.fill();
+//     // Fill with semi-transparent color
+//     ctx.fillStyle = color + '40'; // 25% opacity
+//     ctx.fill();
     
-    // Draw points
-    for (let i = 0; i < points.length; i++) {
-      ctx.beginPath();
-      ctx.arc(points[i].x, points[i].y, 4, 0, Math.PI * 2);
-      ctx.fillStyle = color;
-      ctx.fill();
-    }
-  };
+//     // Draw points
+//     for (let i = 0; i < points.length; i++) {
+//       ctx.beginPath();
+//       ctx.arc(points[i].x, points[i].y, 4, 0, Math.PI * 2);
+//       ctx.fillStyle = color;
+//       ctx.fill();
+//     }
+//   };
   
   const processVideo = async () => {
     if (!videoFileRef.current?.files?.length) {
@@ -339,7 +473,7 @@ const OverspeedDetection: React.FC = () => {
   };
   
   return (
-    <div className="container mx-auto max-w-4xl pt-8 px-4  ">
+    <div className="container mx-auto max-w-4xl pt-8 px-4">
       <h1 className="text-3xl font-bold mb-6 bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 bg-clip-text text-transparent">Overspeed Detection System</h1>
       
       <Card className="mb-6 w-full bg-gradient-to-br from-[#221F26] to-[#403E43]/80 border border-[#7E69AB]/20">
@@ -398,7 +532,8 @@ const OverspeedDetection: React.FC = () => {
         </CardContent>
       </Card>
 
-      {canvasContainerVisible && (
+      {/* Canvas Container */}
+      {canvasContainerVisible && capturedFrameUrl && (
         <Card className="mb-6 w-full bg-gradient-to-br from-[#221F26] to-[#403E43]/80 border border-[#7E69AB]/20">
           <CardContent className="p-6">
             <div className="text-center mb-4">
@@ -410,18 +545,30 @@ const OverspeedDetection: React.FC = () => {
               </p>
             </div>
             
-            <div className="relative mb-4">
-              <canvas 
-                ref={videoCanvasRef} 
-                width={800} 
-                height={450}
-                className="w-full h-auto rounded-md bg-white/5 backdrop-blur-md border border-white/10"
+            <div className="relative mb-4" ref={containerRef}>
+              {/* Display captured frame as image */}
+              <img 
+                ref={imageRef}
+                src={capturedFrameUrl} 
+                alt="Captured Frame"
+                className="w-full h-auto rounded-md"
+                onLoad={() => {
+                  // Adjust canvas dimensions when image loads
+                  if (imageRef.current && drawingAreaRef.current) {
+                    const rect = imageRef.current.getBoundingClientRect();
+                    drawingAreaRef.current.width = rect.width;
+                    drawingAreaRef.current.height = rect.height;
+                    setFrameWidth(rect.width);
+                    setFrameHeight(rect.height);
+                  }
+                }}
               />
+              
+              {/* Drawing canvas overlay */}
               <canvas
                 ref={drawingAreaRef}
-                width={800}
-                height={450}
-                className="absolute top-0 left-0 w-full h-auto"
+                className="absolute top-0 left-0 w-full h-full cursor-crosshair"
+                style={{ touchAction: 'none' }} // Prevents scrolling on touch devices
                 onMouseDown={startDrawing}
                 onMouseMove={draw}
                 onMouseUp={endDrawing}
@@ -648,7 +795,8 @@ const OverspeedDetection: React.FC = () => {
         </Card>
       )}
     </div>
-  );
+
+    );
 };
 
 export default OverspeedDetection;
