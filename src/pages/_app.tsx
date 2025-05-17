@@ -1,5 +1,5 @@
 // pages/_app.tsx
-import '../styles/globals.css'
+// import '../styles/globals.css'
 import '@solana/wallet-adapter-react-ui/styles.css' // Required for wallet UI
 
 import type { AppProps } from 'next/app'
