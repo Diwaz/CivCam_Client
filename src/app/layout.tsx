@@ -31,7 +31,10 @@ export default function RootLayout({
       >
         <SolanaProvider>
 
+        <div className="bg-gradient-to-br from-[#1A1F2C] via-[#1A1F2C]/95 to-[#8B5CF6]/10">
+        
         {children}
+        </div>
         </SolanaProvider>
         <Toaster/>
       </body>
