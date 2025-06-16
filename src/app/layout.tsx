@@ -17,6 +17,22 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "CivCam",
   description: "Decentralizing ANPR system",
+  openGraph: {
+    title: "CivCam",
+    description: "Decentralizing ANPR system",
+    url: "https://www.civcam.xyz",
+    siteName: "CivCam",
+    images: [
+      {
+        url: "https://www.civcam.xyz/thumbnail.png", // must be full URL
+        width: 1200,
+        height: 630,
+        alt: "CivCam Thumbnail",
+      },
+    ],
+    locale: "en_US",
+    type: "website",
+  },
 };
 
 export default function RootLayout({
